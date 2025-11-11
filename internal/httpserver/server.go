@@ -41,6 +41,10 @@ func NewRouter(cfg config.Config) http.Handler {
 	})
 	r.Use(corsMw)
 
+	// Project middlewares
+	r.Use(Logger())
+	r.Use(RateLimit(cfg.RateLimitRPS, cfg.RateLimitBurst))
+
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, envelope{Success: true, Data: map[string]string{"status": "ok"}})
