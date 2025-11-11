@@ -3,6 +3,7 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
+	"database/sql"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -23,7 +24,7 @@ type apiError struct {
 	Message string `json:"message"`
 }
 
-func NewRouter(cfg config.Config) http.Handler {
+func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -49,6 +50,10 @@ func NewRouter(cfg config.Config) http.Handler {
 		v1.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, envelope{Success: true, Data: map[string]string{"status": "ok"}})
 		})
+
+		// Auth
+		v1.Post("/users/register", RegisterHandler(db))
+		v1.Post("/users/login", LoginHandler(db, cfg.JWTSecret))
 	})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {

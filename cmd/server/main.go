@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("migrations: %v", err)
 	}
 
-	router := httpserver.NewRouter(cfg)
+	router := httpserver.NewRouter(cfg, db)
 
 	server := &http.Server{
 		Addr:              cfg.Address(),
