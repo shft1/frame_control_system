@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"frame_control_system/internal/events"
 	"frame_control_system/internal/models"
 	"frame_control_system/internal/storage"
 )
@@ -48,7 +49,7 @@ func CreateOrderHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "db error"}})
 			return
 		}
-		_ = storage.AddOutboxEvent(ctx, db, "order.created", map[string]any{
+		_ = storage.AddOutboxEvent(ctx, db, events.OrderCreated, map[string]any{
 			"id":      order.ID,
 			"user_id": order.UserID,
 			"status":  order.Status,
@@ -173,7 +174,7 @@ func UpdateOrderStatusHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "db error"}})
 			return
 		}
-		_ = storage.AddOutboxEvent(ctx, db, "order.status_updated", map[string]any{
+		_ = storage.AddOutboxEvent(ctx, db, events.OrderStatusUpdate, map[string]any{
 			"id":     o.ID,
 			"status": to,
 		})
@@ -218,7 +219,7 @@ func CancelOrderHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "db error"}})
 			return
 		}
-		_ = storage.AddOutboxEvent(ctx, db, "order.status_updated", map[string]any{
+		_ = storage.AddOutboxEvent(ctx, db, events.OrderStatusUpdate, map[string]any{
 			"id":     o.ID,
 			"status": models.OrderStatusCancelled,
 		})

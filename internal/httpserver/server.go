@@ -65,6 +65,7 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 
 			// Admin
 			pr.With(RequireRole("admin")).Get("/users", AdminListUsersHandler(db))
+			pr.With(RequireRole("admin")).Get("/events/outbox", AdminListOutboxHandler(db))
 
 			// Orders
 			pr.Post("/orders", CreateOrderHandler(db))
