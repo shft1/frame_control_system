@@ -54,6 +54,18 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 		// Auth
 		v1.Post("/users/register", RegisterHandler(db))
 		v1.Post("/users/login", LoginHandler(db, cfg.JWTSecret))
+
+		// Protected
+		v1.Group(func(pr chi.Router) {
+			pr.Use(AuthMiddleware(cfg.JWTSecret))
+
+			// Me
+			pr.Get("/users/me", GetMeHandler(db))
+			pr.Patch("/users/me", UpdateMeHandler(db))
+
+			// Admin
+			pr.With(RequireRole("admin")).Get("/users", AdminListUsersHandler(db))
+		})
 	})
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
