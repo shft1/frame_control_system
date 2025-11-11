@@ -65,6 +65,13 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 
 			// Admin
 			pr.With(RequireRole("admin")).Get("/users", AdminListUsersHandler(db))
+
+			// Orders
+			pr.Post("/orders", CreateOrderHandler(db))
+			pr.Get("/orders", ListOrdersHandler(db))
+			pr.Get("/orders/{id}", GetOrderHandler(db)) // prefer path param
+			pr.Patch("/orders/{id}/status", UpdateOrderStatusHandler(db))
+			pr.Delete("/orders/{id}", CancelOrderHandler(db))
 		})
 	})
 
