@@ -1,0 +1,26 @@
+# Go build artifacts
+/bin/
+*.out
+coverage.out
+
+# SQLite databases and journals
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Environment files
+.env
+.env.*
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Temporary files
+/tmp/
+
+
