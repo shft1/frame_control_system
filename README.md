@@ -1,15 +1,48 @@
-# Frame Control System (Go, SQLite)
+# Frame Control System — микросервисный бэкенд (Go) под Docker Compose
 
-Монолитный REST API на Go с SQLite.
+Лёгкий микросервисный бэкенд на Go, запускаемый через Docker Compose. В составе: сервис приложения, база данных и административный UI.
 
-## Запуск
+## Сервисы (docker-compose)
 
-1. Требуется Go 1.22+ (рекомендуется актуальный toolchain).
-2. Установите переменные окружения (см. ниже) или создайте файл `.env` по образцу `.env.example`.
-3. Установите зависимости и запустите:
-   - `make tidy` (однократно)
+- `app` — HTTP API (Go), порт 8080
+- `postgres` — СУБД, порт 5432
+- `pgadmin` — веб‑UI для БД, порт 5050
+
+Файл оркестрации: `docker-compose.yml`
+
+## Быстрый старт (Docker)
+
+1. Требуется Docker/Docker Compose.
+2. Запустите стэк:
+   - Только приложение:  
+     `docker compose up -d app`
+   - Полностью (app + postgres + pgadmin):  
+     `docker compose up -d`
+3. Проверка:  
+   `GET http://localhost:8080/api/v1/healthz` → ожидается `{ "success": true }`
+
+PgAdmin: `http://localhost:5050` (логин/пароль см. в `docker-compose.yml`)
+
+## Ручной запуск (без Docker)
+
+1. Требуется Go 1.22+.
+2. Установите переменные окружения (см. ниже) или создайте `.env`.
+3. Локально:
+   - `make tidy`
    - `make run`
-4. Health-check: `GET http://localhost:8080/api/v1/healthz` → `{ "success": true }`
+
+## Переменные окружения
+
+- `APP_ENV` — профиль (`dev`/`test`/`prod`), по умолчанию `dev`
+- `APP_PORT` — порт HTTP (по умолчанию `8080`)
+- `DB_DSN` — строка подключения к БД (пример: `postgres://appuser:apppass@postgres:5432/appdb?sslmode=disable`)
+- `JWT_SECRET` — секрет для подписи JWT (обязателен в prod)
+- `CORS_ORIGINS` — `*` или список источников через запятую
+- `LOG_LEVEL` — уровень логов (`info`, `debug`, …)
+- `RATE_LIMIT_RPS` — глобальный RPS лимит (float)
+- `RATE_LIMIT_BURST` — burst для rate limit
+
+См. пример: `.env.example`.
 
 ## Эндпоинты
 
@@ -27,24 +60,11 @@
 - `GET /api/v1/events/outbox` (admin)
 - Dev (не в prod): `POST /api/v1/dev/seed-admin` — создать/назначить admin и вернуть JWT
 
-Документация: `docs/openapi.yaml`.
-
-## Переменные окружения
-
-- `APP_ENV` — профиль (`dev`/`test`/`prod`), по умолчанию `dev`
-- `APP_PORT` — порт HTTP (по умолчанию `8080`)
-- `DB_PATH` — путь к файлу SQLite (по умолчанию `app.db`)
-- `JWT_SECRET` — секрет для подписи JWT (обязателен в prod)
-- `CORS_ORIGINS` — `*` или список источников через запятую
-- `LOG_LEVEL` — уровень логов (`info`, `debug`, …)
-- `RATE_LIMIT_RPS` — глобальный RPS лимит (float)
-- `RATE_LIMIT_BURST` — burst для rate limit
-
-См. пример: `.env.example`.
+Документация: `docs/openapi.yaml`
 
 ## Администратор (dev)
 
-Для быстрого получения прав администратора в профиле dev есть утилита:
+Быстрый способ выдать права администратора:
 
 `POST /api/v1/dev/seed-admin`
 
@@ -54,31 +74,26 @@ Body (необязательно):
 ```
 Если пользователь существует — ему добавят роль `admin` и при необходимости обновят пароль, в ответе вернётся `token` для admin.
 
-## Тесты
-
-`go test ./...`
-
 ## Postman коллекция
 
 - Импортируйте `docs/postman_collection.json` в Postman.
-- Настройте переменные окружения:
-  - `baseUrl` (по умолчанию `http://localhost:8080/api/v1`)
-  - `token` — клиентский JWT (получить из запроса Login)
-  - `adminToken` — JWT админа (если используете роль admin)
-  - `orderId` — идентификатор созданного заказа (сеттер установлен в тестах коллекции)
+- Переменные окружения:
+  - `baseUrl` — `http://localhost:8080/api/v1`
+  - `token` — JWT (Login сохраняет автоматически)
+  - `adminToken` — JWT админа (Dev: seed‑admin)
+  - `orderId*` — идентификаторы заказов (ставятся тестами коллекции)
 
 ## Поведение и соглашения
 
-- Формат ответа: `{ success, data?, error? }`, ошибка `{ code, message }`.
-- Версионирование путей: префикс `/api/v1`.
-- Авторизация: `Authorization: Bearer <JWT>`.
-- Логи: структурированные, включают `request_id`, статус, длительность.
-- Rate limit: глобальный, настраивается через env.
-- Доменные события: `order.created`, `order.status_updated` — сохраняются в таблицу `outbox_events` (эндпоинт просмотра только для admin).
+- Формат ответа: `{ success, data?, error? }`, ошибка `{ code, message }`
+- Версионирование путей: префикс `/api/v1`
+- Авторизация: `Authorization: Bearer <JWT>`
+- Логи: структурированные, включают `request_id`, статус, длительность
+- Rate limit: глобальный, настраивается через env
+- Доменные события: `order.created`, `order.status_updated` — доступны через outbox (admin)
 
-## Примечания по SQLite
+## Тесты
 
-- Включены `WAL` и `foreign_keys=ON`.
-- Миграции выполняются автоматически при старте (встроены через `embed`).
+`go test ./...`
 
 
