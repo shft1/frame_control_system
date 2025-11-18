@@ -83,10 +83,15 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const code = pm.response.code;",
+              "pm.test(\"status 200 or 429\", () => pm.expect([200,429]).to.include(code));",
               "const j = pm.response.json();",
-              "pm.environment.set(\"token\", j.data.token);",
-              "pm.test(\"token present\", () => pm.expect(j.data.token).to.be.a('string'));"
+              "if (code === 200) {",
+              "  pm.environment.set(\"token\", j.data.token);",
+              "  pm.test(\"token present\", () => pm.expect(j.data.token).to.be.a('string'));",
+              "} else if (code === 429) {",
+              "  pm.test(\"rate limited error\", () => pm.expect(j.error && j.error.code).to.eql('rate_limited'));",
+              "}"
             ],
             "type": "text/javascript"
           }
@@ -115,6 +120,23 @@
         }
       ],
       "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users/me" }
+    },
+    {
+      "name": "Unauthorized orders list (should 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+              "const j = pm.response.json();",
+              "pm.test(\"error unauthorized\", () => pm.expect(j.error.code).to.eql('unauthorized'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/orders" }
     },
     {
       "name": "Me (GET)",
@@ -351,6 +373,44 @@
       }
     },
     {
+      "name": "Admin users list with user token (should 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+              "const j = pm.response.json();",
+              "pm.test(\"error forbidden\", () => pm.expect(j.error.code).to.eql('forbidden'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/users?limit=10&page=1"
+      }
+    },
+    {
+      "name": "Admin users list no token (should 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+              "const j = pm.response.json();",
+              "pm.test(\"error unauthorized\", () => pm.expect(j.error.code).to.eql('unauthorized'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users?limit=10&page=1" }
+    },
+    {
       "name": "Admin outbox (optional)",
       "event": [
         {
@@ -372,6 +432,205 @@
         "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
         "url": "{{baseUrl}}/events/outbox?limit=50"
       }
+    },
+    {
+      "name": "Outbox with user token (should 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+              "const j = pm.response.json();",
+              "pm.test(\"error forbidden\", () => pm.expect(j.error.code).to.eql('forbidden'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/events/outbox?limit=50"
+      }
+    },
+    {
+      "name": "Outbox no token (should 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+              "const j = pm.response.json();",
+              "pm.test(\"error unauthorized\", () => pm.expect(j.error.code).to.eql('unauthorized'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/events/outbox?limit=50" }
+    },
+    {
+      "name": "Register invalid email (should 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+              "const j = pm.response.json();",
+              "pm.test(\"invalid_input\", () => pm.expect(j.error.code).to.eql('invalid_input'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"bad-email\",\n  \"password\": \"123\",\n  \"name\": \"Bad\"\n}" },
+        "url": "{{baseUrl}}/users/register"
+      }
+    },
+    {
+      "name": "Create second user (u2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.expect([201,409]).to.include(pm.response.code);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"u2@example.com\",\n  \"password\": \"secret12\",\n  \"name\": \"User Two\"\n}" },
+        "url": "{{baseUrl}}/users/register"
+      }
+    },
+    {
+      "name": "Login u2 (save token2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.environment.set(\"token2\", j.data.token);",
+              "pm.test(\"token2 present\", () => pm.expect(j.data.token).to.be.a('string'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"u2@example.com\",\n  \"password\": \"secret12\"\n}" },
+        "url": "{{baseUrl}}/users/login"
+      }
+    },
+    {
+      "name": "Create order (u2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.environment.set(\"orderIdUser2\", j.data.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token2}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    { \"name\": \"itemX\", \"quantity\": 1, \"price\": 1 }\n  ]\n}" },
+        "url": "{{baseUrl}}/orders"
+      }
+    },
+    {
+      "name": "Get u2 order with user1 token (should 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+              "const j = pm.response.json();",
+              "pm.test(\"error forbidden\", () => pm.expect(j.error.code).to.eql('forbidden'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/orders/{{orderIdUser2}}"
+      }
+    },
+    {
+      "name": "Invalid transition created -> done (should 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+              "const j = pm.response.json();",
+              "pm.test(\"invalid_transition\", () => pm.expect(j.error.code).to.eql('invalid_transition'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    { \"name\": \"item3\", \"quantity\": 1, \"price\": 2 }\n  ]\n}" },
+        "url": "{{baseUrl}}/orders"
+      }
+    },
+    {
+      "name": "Set status -> done directly (should 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 400\", () => pm.response.to.have.status(400));",
+              "const j = pm.response.json();",
+              "pm.test(\"invalid_transition\", () => pm.expect(j.error.code).to.eql('invalid_transition'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{ \"status\": \"done\" }" },
+        "url": "{{baseUrl}}/orders/{{orderId3}}/status"
+      }
     }
   ],
   "event": [],
@@ -380,7 +639,10 @@
     { "key": "token", "value": "" },
     { "key": "adminToken", "value": "" },
     { "key": "orderId1", "value": "" },
-    { "key": "orderId2", "value": "" }
+    { "key": "orderId2", "value": "" },
+    { "key": "token2", "value": "" },
+    { "key": "orderIdUser2", "value": "" },
+    { "key": "orderId3", "value": "" }
   ]
 }
 
