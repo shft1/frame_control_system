@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    container_name: framecs-app
+    restart: unless-stopped
+    environment:
+      APP_ENV: dev
+      APP_PORT: 8080
+      DB_PATH: /app/data/app.db
+      JWT_SECRET: dev-secret-change-me
+      CORS_ORIGINS: "*"
+      LOG_LEVEL: info
+      RATE_LIMIT_RPS: 10
+      RATE_LIMIT_BURST: 20
+      DB_DSN: postgres://appuser:apppass@postgres:5432/appdb?sslmode=disable
+    ports:
+      - "8080:8080"
+    volumes:
+      - appdata:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: framecs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: framecs-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  pgdata:
+  appdata:
+
+

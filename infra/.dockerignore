@@ -1,0 +1,16 @@
+# Docker build context exclusions
+.git
+.gitignore
+**/.DS_Store
+**/.idea
+**/.vscode
+bin
+tmp
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+docs/postman_collection.json
+
+
