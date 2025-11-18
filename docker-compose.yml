@@ -1,11 +1,11 @@
 version: "3.9"
 
 services:
-  app:
+  api_gateway:
     build:
       context: .
       dockerfile: infra/Dockerfile
-    container_name: framecs-app
+    container_name: framecs-api-gateway
     restart: unless-stopped
     environment:
       APP_ENV: dev
@@ -16,47 +16,53 @@ services:
       LOG_LEVEL: info
       RATE_LIMIT_RPS: 10
       RATE_LIMIT_BURST: 20
-      DB_DSN: postgres://appuser:apppass@postgres:5432/appdb?sslmode=disable
     ports:
       - "8080:8080"
     volumes:
-      - appdata:/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - apigwdata:/app/data
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: framecs-postgres
+  service_users:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    container_name: framecs-service-users
     restart: unless-stopped
     environment:
-      POSTGRES_DB: appdb
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD: apppass
+      APP_ENV: dev
+      APP_PORT: 8081
+      DB_PATH: /app/data/users.db
+      JWT_SECRET: dev-secret-change-me
+      CORS_ORIGINS: "*"
+      LOG_LEVEL: info
+      RATE_LIMIT_RPS: 10
+      RATE_LIMIT_BURST: 20
     ports:
-      - "5432:5432"
+      - "8081:8081"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - usersdata:/app/data
 
-  pgadmin:
-    image: dpage/pgadmin4:8
-    container_name: framecs-pgadmin
+  service_orders:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    container_name: framecs-service-orders
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@local
-      PGADMIN_DEFAULT_PASSWORD: admin
+      APP_ENV: dev
+      APP_PORT: 8082
+      DB_PATH: /app/data/orders.db
+      JWT_SECRET: dev-secret-change-me
+      CORS_ORIGINS: "*"
+      LOG_LEVEL: info
+      RATE_LIMIT_RPS: 10
+      RATE_LIMIT_BURST: 20
     ports:
-      - "5050:80"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "8082:8082"
+    volumes:
+      - ordersdata:/app/data
 volumes:
-  pgdata:
-  appdata:
+  apigwdata:
+  usersdata:
+  ordersdata:
 
 

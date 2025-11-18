@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"frame_control_system/internal/models"
+	"frame_control_system/service_users/models"
 )
 
 type UserRepository struct {

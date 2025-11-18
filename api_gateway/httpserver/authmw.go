@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"frame_control_system/internal/auth"
+	"frame_control_system/api_gateway/auth"
 )
 
 type authCtxKey struct{}

@@ -11,9 +11,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"frame_control_system/internal/auth"
-	"frame_control_system/internal/models"
-	"frame_control_system/internal/storage"
+	"frame_control_system/api_gateway/auth"
+	usermodels "frame_control_system/service_users/models"
+	userstorage "frame_control_system/service_users/storage"
 )
 
 type seedAdminRequest struct {
@@ -23,7 +23,7 @@ type seedAdminRequest struct {
 }
 
 func DevSeedAdminHandler(db *sql.DB, jwtSecret string) http.HandlerFunc {
-	userRepo := storage.NewUserRepository(db)
+	userRepo := userstorage.NewUserRepository(db)
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req seedAdminRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
@@ -50,7 +50,7 @@ func DevSeedAdminHandler(db *sql.DB, jwtSecret string) http.HandlerFunc {
 				writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "hashing error"}})
 				return
 			}
-			newUser := models.User{
+			newUser := usermodels.User{
 				ID:           uuid.NewString(),
 				Email:        strings.TrimSpace(req.Email),
 				PasswordHash: hash,

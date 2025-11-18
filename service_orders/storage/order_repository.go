@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"frame_control_system/internal/models"
+	"frame_control_system/service_orders/models"
 )
 
 type OrderRepository struct {

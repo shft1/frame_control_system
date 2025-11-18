@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"frame_control_system/internal/config"
-	"frame_control_system/internal/httpserver"
-	"frame_control_system/internal/storage"
+	"frame_control_system/api_gateway/config"
+	"frame_control_system/api_gateway/httpserver"
+	"frame_control_system/platform/storage"
 )
 
 func main() {

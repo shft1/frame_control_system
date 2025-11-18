@@ -12,13 +12,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"frame_control_system/internal/events"
-	"frame_control_system/internal/models"
-	"frame_control_system/internal/storage"
+	"frame_control_system/service_orders/events"
+	orderModels "frame_control_system/service_orders/models"
+	orderStorage "frame_control_system/service_orders/storage"
 )
 
 type createOrderRequest struct {
-	Items []models.OrderItem `json:"items"`
+	Items []orderModels.OrderItem `json:"items"`
 }
 
 type updateStatusRequest struct {
@@ -26,7 +26,7 @@ type updateStatusRequest struct {
 }
 
 func CreateOrderHandler(db *sql.DB) http.HandlerFunc {
-	repo := storage.NewOrderRepository(db)
+	repo := orderStorage.NewOrderRepository(db)
 	return func(w http.ResponseWriter, r *http.Request) {
 		ac := GetAuth(r)
 		if ac == nil {
@@ -40,7 +40,7 @@ func CreateOrderHandler(db *sql.DB) http.HandlerFunc {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		order, err := storage.NewOrder(ac.UserID, req.Items)
+		order, err := orderStorage.NewOrder(ac.UserID, req.Items)
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, envelope{Success: false, Error: &apiError{Code: "invalid_input", Message: "invalid order items"}})
 			return
@@ -49,7 +49,7 @@ func CreateOrderHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "db error"}})
 			return
 		}
-		_ = storage.AddOutboxEvent(ctx, db, events.OrderCreated, map[string]any{
+		_ = orderStorage.AddOutboxEvent(ctx, db, events.OrderCreated, map[string]any{
 			"id":      order.ID,
 			"user_id": order.UserID,
 			"status":  order.Status,
@@ -60,7 +60,7 @@ func CreateOrderHandler(db *sql.DB) http.HandlerFunc {
 }
 
 func GetOrderHandler(db *sql.DB) http.HandlerFunc {
-	repo := storage.NewOrderRepository(db)
+	repo := orderStorage.NewOrderRepository(db)
 	return func(w http.ResponseWriter, r *http.Request) {
 		ac := GetAuth(r)
 		if ac == nil {
@@ -92,7 +92,7 @@ func GetOrderHandler(db *sql.DB) http.HandlerFunc {
 }
 
 func ListOrdersHandler(db *sql.DB) http.HandlerFunc {
-	repo := storage.NewOrderRepository(db)
+	repo := orderStorage.NewOrderRepository(db)
 	return func(w http.ResponseWriter, r *http.Request) {
 		ac := GetAuth(r)
 		if ac == nil {
@@ -105,7 +105,7 @@ func ListOrdersHandler(db *sql.DB) http.HandlerFunc {
 		offset := (page - 1) * limit
 		status := strings.TrimSpace(q.Get("status"))
 		sort := strings.TrimSpace(q.Get("sort"))
-		params := storage.ListOrdersParams{
+		params := orderStorage.ListOrdersParams{
 			UserID:    ac.UserID,
 			Status:    status,
 			Sort:      sort,
@@ -129,7 +129,7 @@ func ListOrdersHandler(db *sql.DB) http.HandlerFunc {
 }
 
 func UpdateOrderStatusHandler(db *sql.DB) http.HandlerFunc {
-	repo := storage.NewOrderRepository(db)
+	repo := orderStorage.NewOrderRepository(db)
 	return func(w http.ResponseWriter, r *http.Request) {
 		ac := GetAuth(r)
 		if ac == nil {
@@ -150,8 +150,8 @@ func UpdateOrderStatusHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, envelope{Success: false, Error: &apiError{Code: "invalid_input", Message: "invalid json"}})
 			return
 		}
-		to := models.OrderStatus(strings.TrimSpace(req.Status))
-		if to != models.OrderStatusInProgress && to != models.OrderStatusDone {
+		to := orderModels.OrderStatus(strings.TrimSpace(req.Status))
+		if to != orderModels.OrderStatusInProgress && to != orderModels.OrderStatusDone {
 			writeJSON(w, http.StatusBadRequest, envelope{Success: false, Error: &apiError{Code: "invalid_input", Message: "unsupported status"}})
 			return
 		}
@@ -174,7 +174,7 @@ func UpdateOrderStatusHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "db error"}})
 			return
 		}
-		_ = storage.AddOutboxEvent(ctx, db, events.OrderStatusUpdate, map[string]any{
+		_ = orderStorage.AddOutboxEvent(ctx, db, events.OrderStatusUpdate, map[string]any{
 			"id":     o.ID,
 			"status": to,
 		})
@@ -184,7 +184,7 @@ func UpdateOrderStatusHandler(db *sql.DB) http.HandlerFunc {
 }
 
 func CancelOrderHandler(db *sql.DB) http.HandlerFunc {
-	repo := storage.NewOrderRepository(db)
+	repo := orderStorage.NewOrderRepository(db)
 	return func(w http.ResponseWriter, r *http.Request) {
 		ac := GetAuth(r)
 		if ac == nil {
@@ -211,7 +211,7 @@ func CancelOrderHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 		// allowed cancel from created or in_progress
-		if err := validateTransition(o.Status, models.OrderStatusCancelled); err != nil {
+		if err := validateTransition(o.Status, orderModels.OrderStatusCancelled); err != nil {
 			writeJSON(w, http.StatusBadRequest, envelope{Success: false, Error: &apiError{Code: "invalid_transition", Message: err.Error()}})
 			return
 		}
@@ -219,26 +219,26 @@ func CancelOrderHandler(db *sql.DB) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, envelope{Success: false, Error: &apiError{Code: "internal_error", Message: "db error"}})
 			return
 		}
-		_ = storage.AddOutboxEvent(ctx, db, events.OrderStatusUpdate, map[string]any{
+		_ = orderStorage.AddOutboxEvent(ctx, db, events.OrderStatusUpdate, map[string]any{
 			"id":     o.ID,
-			"status": models.OrderStatusCancelled,
+			"status": orderModels.OrderStatusCancelled,
 		})
-		o.Status = models.OrderStatusCancelled
+		o.Status = orderModels.OrderStatusCancelled
 		writeJSON(w, http.StatusOK, envelope{Success: true, Data: o})
 	}
 }
 
-func validateTransition(from, to models.OrderStatus) error {
+func validateTransition(from, to orderModels.OrderStatus) error {
 	switch from {
-	case models.OrderStatusCreated:
-		if to == models.OrderStatusInProgress || to == models.OrderStatusCancelled {
+	case orderModels.OrderStatusCreated:
+		if to == orderModels.OrderStatusInProgress || to == orderModels.OrderStatusCancelled {
 			return nil
 		}
-	case models.OrderStatusInProgress:
-		if to == models.OrderStatusDone || to == models.OrderStatusCancelled {
+	case orderModels.OrderStatusInProgress:
+		if to == orderModels.OrderStatusDone || to == orderModels.OrderStatusCancelled {
 			return nil
 		}
-	case models.OrderStatusDone, models.OrderStatusCancelled:
+	case orderModels.OrderStatusDone, orderModels.OrderStatusCancelled:
 		// terminal
 	}
 	return errors.New(fmt.Sprintf("cannot transition from %s to %s", from, to))

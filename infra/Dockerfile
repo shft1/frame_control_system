@@ -3,7 +3,6 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-# Для sqlite3 драйвера требуется CGO
 RUN apk add --no-cache build-base git sqlite-dev
 
 COPY go.mod go.sum ./

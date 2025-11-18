@@ -1,16 +1,16 @@
 package httpserver
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
-	"database/sql"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
-	"frame_control_system/internal/config"
+	"frame_control_system/api_gateway/config"
 )
 
 type envelope struct {
