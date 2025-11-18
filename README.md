@@ -1,12 +1,11 @@
-# Frame Control System — микросервисный бэкенд (Go) под Docker Compose
+# Frame Control System — микросервисное приложение
 
-Лёгкий микросервисный бэкенд на Go, запускаемый через Docker Compose. В составе: сервис приложения, база данных и административный UI.
+Микросервисный приложение на Go, запускаемый через Docker Compose.
 
 ## Сервисы (docker-compose)
 
 - `app` — HTTP API (Go), порт 8080
 - `postgres` — СУБД, порт 5432
-- `pgadmin` — веб‑UI для БД, порт 5050
 
 Файл оркестрации: `docker-compose.yml`
 
@@ -16,12 +15,8 @@
 2. Запустите стэк:
    - Только приложение:  
      `docker compose up -d app`
-   - Полностью (app + postgres + pgadmin):  
-     `docker compose up -d`
 3. Проверка:  
    `GET http://localhost:8080/api/v1/healthz` → ожидается `{ "success": true }`
-
-PgAdmin: `http://localhost:5050` (логин/пароль см. в `docker-compose.yml`)
 
 ## Ручной запуск (без Docker)
 
@@ -91,9 +86,3 @@ Body (необязательно):
 - Логи: структурированные, включают `request_id`, статус, длительность
 - Rate limit: глобальный, настраивается через env
 - Доменные события: `order.created`, `order.status_updated` — доступны через outbox (admin)
-
-## Тесты
-
-`go test ./...`
-
-
