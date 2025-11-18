@@ -2,87 +2,22 @@
 
 Микросервисный приложение на Go, запускаемый через Docker Compose.
 
-## Сервисы (docker-compose)
+---
 
-- `app` — HTTP API (Go), порт 8080
-- `postgres` — СУБД, порт 5432
+## Тестирование приложения
 
-Файл оркестрации: `docker-compose.yml`
+<img width="826" height="466" alt="image" src="https://github.com/user-attachments/assets/2dec761a-a617-41bc-9b4e-6d23e12fa29c" />
 
-## Быстрый старт (Docker)
+<img width="833" height="501" alt="image" src="https://github.com/user-attachments/assets/741dc7d7-4a0f-42d3-8b70-17d5ff095f47" />
 
-1. Требуется Docker/Docker Compose.
-2. Запустите стэк:
-   - Только приложение:  
-     `docker compose up -d app`
-3. Проверка:  
-   `GET http://localhost:8080/api/v1/healthz` → ожидается `{ "success": true }`
+<img width="837" height="519" alt="image" src="https://github.com/user-attachments/assets/ca37f647-5898-459c-b0f7-f1749682719e" />
 
-## Ручной запуск (без Docker)
+<img width="832" height="557" alt="image" src="https://github.com/user-attachments/assets/d7067b24-c158-46e4-873d-113bca6a2897" />
 
-1. Требуется Go 1.22+.
-2. Установите переменные окружения (см. ниже) или создайте `.env`.
-3. Локально:
-   - `make tidy`
-   - `make run`
+<img width="827" height="476" alt="image" src="https://github.com/user-attachments/assets/ebd8b811-0a66-4ab4-b946-3d027c7c17e0" />
 
-## Переменные окружения
+<img width="835" height="347" alt="image" src="https://github.com/user-attachments/assets/1cf13302-7354-4ea9-af5d-5719aaa7b04b" />
 
-- `APP_ENV` — профиль (`dev`/`test`/`prod`), по умолчанию `dev`
-- `APP_PORT` — порт HTTP (по умолчанию `8080`)
-- `DB_DSN` — строка подключения к БД (пример: `postgres://appuser:apppass@postgres:5432/appdb?sslmode=disable`)
-- `JWT_SECRET` — секрет для подписи JWT (обязателен в prod)
-- `CORS_ORIGINS` — `*` или список источников через запятую
-- `LOG_LEVEL` — уровень логов (`info`, `debug`, …)
-- `RATE_LIMIT_RPS` — глобальный RPS лимит (float)
-- `RATE_LIMIT_BURST` — burst для rate limit
+<img width="829" height="473" alt="image" src="https://github.com/user-attachments/assets/df8cbb7d-c60d-42df-b7ef-4c387bc9a807" />
 
-См. пример: `.env.example`.
-
-## Эндпоинты
-
-- `GET /api/v1/healthz`
-- `POST /api/v1/users/register`
-- `POST /api/v1/users/login`
-- `GET /api/v1/users/me` (JWT)
-- `PATCH /api/v1/users/me` (JWT)
-- `GET /api/v1/users` (admin)
-- `POST /api/v1/orders` (JWT)
-- `GET /api/v1/orders` (JWT; admin видит всех)
-- `GET /api/v1/orders/{id}` (JWT; владелец или admin)
-- `PATCH /api/v1/orders/{id}/status` (JWT; валидные переходы)
-- `DELETE /api/v1/orders/{id}` (JWT)
-- `GET /api/v1/events/outbox` (admin)
-- Dev (не в prod): `POST /api/v1/dev/seed-admin` — создать/назначить admin и вернуть JWT
-
-Документация: `docs/openapi.yaml`
-
-## Администратор (dev)
-
-Быстрый способ выдать права администратора:
-
-`POST /api/v1/dev/seed-admin`
-
-Body (необязательно):
-```json
-{ "email": "admin@example.com", "password": "admin123", "name": "Admin" }
-```
-Если пользователь существует — ему добавят роль `admin` и при необходимости обновят пароль, в ответе вернётся `token` для admin.
-
-## Postman коллекция
-
-- Импортируйте `docs/postman_collection.json` в Postman.
-- Переменные окружения:
-  - `baseUrl` — `http://localhost:8080/api/v1`
-  - `token` — JWT (Login сохраняет автоматически)
-  - `adminToken` — JWT админа (Dev: seed‑admin)
-  - `orderId*` — идентификаторы заказов (ставятся тестами коллекции)
-
-## Поведение и соглашения
-
-- Формат ответа: `{ success, data?, error? }`, ошибка `{ code, message }`
-- Версионирование путей: префикс `/api/v1`
-- Авторизация: `Authorization: Bearer <JWT>`
-- Логи: структурированные, включают `request_id`, статус, длительность
-- Rate limit: глобальный, настраивается через env
-- Доменные события: `order.created`, `order.status_updated` — доступны через outbox (admin)
+---
