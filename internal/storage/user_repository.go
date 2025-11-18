@@ -73,6 +73,23 @@ func (r *UserRepository) UpdateName(ctx context.Context, id, name string) error 
 	return err
 }
 
+func (r *UserRepository) UpdateRoles(ctx context.Context, id string, roles []string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	rolesStr := strings.Join(roles, ",")
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET roles = ?, updated_at = ? WHERE id = ?
+	`, rolesStr, now, id)
+	return err
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, id, passwordHash string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?
+	`, passwordHash, now, id)
+	return err
+}
+
 type ListUsersParams struct {
 	Email string
 	Name  string
@@ -141,7 +158,7 @@ func (r *UserRepository) List(ctx context.Context, p ListUsersParams) ([]models.
 }
 
 func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT 1 FROM users WHERE email = ? LIMIT 1`)
+	row := r.db.QueryRowContext(ctx, `SELECT 1 FROM users WHERE email = ? LIMIT 1`, email)
 	var one int
 	if err := row.Scan(&one); err != nil {
 		if err == sql.ErrNoRows {

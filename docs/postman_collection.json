@@ -8,14 +8,37 @@
   "item": [
     {
       "name": "Health",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{baseUrl}}/healthz"
-      }
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"success true\", () => pm.expect(j.success).to.eql(true));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/healthz" }
     },
     {
-      "name": "Register",
+      "name": "Dev: seed admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200/201\", () => pm.expect([200,201]).to.include(pm.response.code));",
+              "const j = pm.response.json();",
+              "pm.environment.set(\"adminToken\", j.data.token);",
+              "pm.test(\"admin token present\", () => pm.expect(j.data.token).to.be.a('string'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -23,8 +46,33 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"u1@example.com\",\n  \"password\": \"secret12\",\n  \"name\": \"User One\"\n}"
+          "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\",\n  \"name\": \"Admin\"\n}"
         },
+        "url": "{{baseUrl}}/dev/seed-admin"
+      }
+    },
+    {
+      "name": "Register",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// При повторном запуске возможен 409 — это ок",
+              "pm.expect([201,409]).to.include(pm.response.code);",
+              "if (pm.response.code === 201) {",
+              "  const j = pm.response.json();",
+              "  pm.test(\"created returns id\", () => pm.expect(j.data.id).to.be.a('string'));",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"u1@example.com\",\n  \"password\": \"secret12\",\n  \"name\": \"User One\"\n}" },
         "url": "{{baseUrl}}/users/register"
       }
     },
@@ -35,9 +83,10 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"status 200\", function () { pm.response.to.have.status(200); });",
-              "var json = pm.response.json();",
-              "pm.environment.set(\"token\", json.data.token);"
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.environment.set(\"token\", j.data.token);",
+              "pm.test(\"token present\", () => pm.expect(j.data.token).to.be.a('string'));"
             ],
             "type": "text/javascript"
           }
@@ -45,50 +94,85 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"u1@example.com\",\n  \"password\": \"secret12\"\n}"
-        },
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"u1@example.com\",\n  \"password\": \"secret12\"\n}" },
         "url": "{{baseUrl}}/users/login"
       }
     },
     {
-      "name": "Me (GET)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
-        "url": "{{baseUrl}}/users/me"
-      }
-    },
-    {
-      "name": "Me (PATCH)",
-      "request": {
-        "method": "PATCH",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"name\": \"User One Updated\"\n}"
-        },
-        "url": "{{baseUrl}}/users/me"
-      }
-    },
-    {
-      "name": "Create order",
+      "name": "Unauthorized me (should 401)",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"status 201\", function () { pm.response.to.have.status(201); });",
-              "pm.environment.set(\"orderId\", pm.response.json().data.id);"
+              "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+              "const j = pm.response.json();",
+              "pm.test(\"error unauthorized\", () => pm.expect(j.error.code).to.eql('unauthorized'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users/me" }
+    },
+    {
+      "name": "Me (GET)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"has id\", () => pm.expect(j.data.id).to.be.a('string'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/users/me"
+      }
+    },
+    {
+      "name": "Me (PATCH)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"name updated\", () => pm.expect(j.data.name).to.eql('User One Updated'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"User One Updated\"\n}" },
+        "url": "{{baseUrl}}/users/me"
+      }
+    },
+    {
+      "name": "Create order (orderId1)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.environment.set(\"orderId1\", j.data.id);",
+              "pm.test(\"status created\", () => pm.expect(j.data.status).to.eql('created'));"
             ],
             "type": "text/javascript"
           }
@@ -100,90 +184,192 @@
           { "key": "Authorization", "value": "Bearer {{token}}" },
           { "key": "Content-Type", "value": "application/json" }
         ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"items\": [\n    { \"name\": \"item1\", \"quantity\": 2, \"price\": 10 }\n  ]\n}"
-        },
+        "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    { \"name\": \"item1\", \"quantity\": 2, \"price\": 10 }\n  ]\n}" },
         "url": "{{baseUrl}}/orders"
       }
     },
     {
-      "name": "Get order",
+      "name": "Cancel order (orderId1 from created)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"status cancelled\", () => pm.expect(j.data.status).to.eql('cancelled'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId1}}"
+      }
+    },
+    {
+      "name": "Create order (orderId2 for transitions)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.environment.set(\"orderId2\", j.data.id);",
+              "pm.test(\"status created\", () => pm.expect(j.data.status).to.eql('created'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"items\": [\n    { \"name\": \"item2\", \"quantity\": 1, \"price\": 5 }\n  ]\n}" },
+        "url": "{{baseUrl}}/orders"
+      }
+    },
+    {
+      "name": "Set status -> in_progress (orderId2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"status in_progress\", () => pm.expect(j.data.status).to.eql('in_progress'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{ \"status\": \"in_progress\" }" },
+        "url": "{{baseUrl}}/orders/{{orderId2}}/status"
+      }
+    },
+    {
+      "name": "Set status -> done (orderId2)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"status done\", () => pm.expect(j.data.status).to.eql('done'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{ \"status\": \"done\" }" },
+        "url": "{{baseUrl}}/orders/{{orderId2}}/status"
+      }
+    },
+    {
+      "name": "Get order2",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"status done\", () => pm.expect(j.data.status).to.eql('done'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
-        "url": "{{baseUrl}}/orders/{{orderId}}"
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/orders/{{orderId2}}"
       }
     },
     {
       "name": "List orders",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+              "const j = pm.response.json();",
+              "pm.test(\"items array\", () => pm.expect(Array.isArray(j.data.items)).to.eql(true));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
         "url": "{{baseUrl}}/orders?limit=10&page=1&sort=created_desc"
       }
     },
     {
-      "name": "Set status -> in_progress",
-      "request": {
-        "method": "PATCH",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{ \"status\": \"in_progress\" }"
-        },
-        "url": "{{baseUrl}}/orders/{{orderId}}/status"
-      }
-    },
-    {
-      "name": "Set status -> done",
-      "request": {
-        "method": "PATCH",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{ \"status\": \"done\" }"
-        },
-        "url": "{{baseUrl}}/orders/{{orderId}}/status"
-      }
-    },
-    {
-      "name": "Cancel order",
-      "request": {
-        "method": "DELETE",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{token}}" }
-        ],
-        "url": "{{baseUrl}}/orders/{{orderId}}"
-      }
-    },
-    {
-      "name": "Admin users list",
+      "name": "Admin users list (optional)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (!pm.environment.get('adminToken')) {",
+              "  console.log('adminToken not set, skipping');",
+              "  return;",
+              "}",
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-        ],
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
         "url": "{{baseUrl}}/users?limit=10&page=1"
       }
     },
     {
-      "name": "Admin outbox",
+      "name": "Admin outbox (optional)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (!pm.environment.get('adminToken')) {",
+              "  console.log('adminToken not set, skipping');",
+              "  return;",
+              "}",
+              "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
-        ],
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
         "url": "{{baseUrl}}/events/outbox?limit=50"
       }
     }
@@ -193,7 +379,8 @@
     { "key": "baseUrl", "value": "http://localhost:8080/api/v1" },
     { "key": "token", "value": "" },
     { "key": "adminToken", "value": "" },
-    { "key": "orderId", "value": "" }
+    { "key": "orderId1", "value": "" },
+    { "key": "orderId2", "value": "" }
   ]
 }
 

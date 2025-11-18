@@ -25,6 +25,7 @@
 - `PATCH /api/v1/orders/{id}/status` (JWT; валидные переходы)
 - `DELETE /api/v1/orders/{id}` (JWT)
 - `GET /api/v1/events/outbox` (admin)
+- Dev (не в prod): `POST /api/v1/dev/seed-admin` — создать/назначить admin и вернуть JWT
 
 Документация: `docs/openapi.yaml`.
 
@@ -40,6 +41,18 @@
 - `RATE_LIMIT_BURST` — burst для rate limit
 
 См. пример: `.env.example`.
+
+## Администратор (dev)
+
+Для быстрого получения прав администратора в профиле dev есть утилита:
+
+`POST /api/v1/dev/seed-admin`
+
+Body (необязательно):
+```json
+{ "email": "admin@example.com", "password": "admin123", "name": "Admin" }
+```
+Если пользователь существует — ему добавят роль `admin` и при необходимости обновят пароль, в ответе вернётся `token` для admin.
 
 ## Тесты
 

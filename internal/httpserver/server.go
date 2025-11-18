@@ -55,6 +55,11 @@ func NewRouter(cfg config.Config, db *sql.DB) http.Handler {
 		v1.Post("/users/register", RegisterHandler(db))
 		v1.Post("/users/login", LoginHandler(db, cfg.JWTSecret))
 
+		// Dev utilities (not in prod)
+		if cfg.Env != "prod" {
+			v1.Post("/dev/seed-admin", DevSeedAdminHandler(db, cfg.JWTSecret))
+		}
+
 		// Protected
 		v1.Group(func(pr chi.Router) {
 			pr.Use(AuthMiddleware(cfg.JWTSecret))
